@@ -2,3 +2,7 @@ PyPDF2
 uvicorn
 fastapi
 python-multipart
+scikit-learn
+python-docx
+transformers
+torch
