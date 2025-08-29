@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 import uvicorn
 
-from src.services.tf_logistic_regression import ContractClassifierService
+from services.tf_logistic_regression import ContractClassifierService
 
 router = APIRouter(prefix="/tf_logistic_regression", tags=["tf_logistic_regression"])
 
@@ -35,22 +35,22 @@ class ClassificationResponse(BaseModel):
 async def classify_contract(request: ClassificationRequest):
     """Classify a single contract document"""
     result = classifier_service.classify_contract(
-        request.text, 
-        request.confidence_threshold, 
+        request.text,
+        request.confidence_threshold,
         request.top_n
     )
-    
+
     if not result["success"]:
         raise HTTPException(status_code=400, detail=result["error"])
-    
+
     return result
 
 @router.post("/classify/batch")
 async def classify_batch(request: BatchClassificationRequest):
     """Classify multiple contract documents"""
     results = classifier_service.classify_batch(
-        request.texts, 
-        request.confidence_threshold, 
+        request.texts,
+        request.confidence_threshold,
         request.top_n
     )
     return {"results": results}

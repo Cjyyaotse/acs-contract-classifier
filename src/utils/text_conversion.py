@@ -9,73 +9,23 @@ from pathlib import Path
 from typing import Optional, Sequence
 
 
-def pdf_to_text(pdf_path: str | Path,
-                pages: Optional[Sequence[int]] = None,
-                output_path: Optional[str | Path] = None) -> str:
+from pypdf import PdfReader
+from fastapi import UploadFile
+
+async def pdf_to_text(file: UploadFile) -> str:
     """
-    Extract text from a PDF file.
-
-    Args:
-        pdf_path: path to the PDF file.
-        pages: optional iterable of 0-based page indices to extract (e.g., [0,2,3]).
-               If None, extracts all pages.
-        output_path: optional path to write the extracted text (.txt).
-
-    Returns:
-        The extracted text as a single string.
+    Extract text from a PDF UploadFile using pypdf.
     """
-    pdf_path = Path(pdf_path)
-    if not pdf_path.exists():
-        raise FileNotFoundError(f"PDF not found: {pdf_path}")
+    text = ""
 
-    text_parts = []
+    # Reset file pointer to beginning (in case it was read elsewhere)
+    await file.seek(0)
 
-    # Try to use pdfplumber first (better layout handling)
-    try:
-        import pdfplumber
-        with pdfplumber.open(pdf_path) as pdf:
-            total = len(pdf.pages)
-            if pages is None:
-                page_iter = range(total)
-            else:
-                page_iter = pages
-            for i in page_iter:
-                if i < 0 or i >= total:
-                    continue
-                page = pdf.pages[i]
-                page_text = page.extract_text() or ""
-                text_parts.append(page_text)
-    except Exception as e_plumber:
-        # Fallback to PyPDF2 if pdfplumber is missing or fails
-        try:
-            from PyPDF2 import PdfReader
-            reader = PdfReader(str(pdf_path))
-            total = len(reader.pages)
-            if pages is None:
-                page_iter = range(total)
-            else:
-                page_iter = pages
-            for i in page_iter:
-                if i < 0 or i >= total:
-                    continue
-                page = reader.pages[i]
-                # extract_text may return None
-                page_text = page.extract_text() or ""
-                text_parts.append(page_text)
-        except Exception as e_pypdf2:
-            # Raise a helpful error summarizing both attempts
-            raise RuntimeError(
-                "Failed to extract PDF text. Tried pdfplumber and PyPDF2.\n"
-                f"pdfplumber error: {e_plumber}\nPyPDF2 error: {e_pypdf2}"
-            )
+    reader = PdfReader(file.file)
+    for page in reader.pages:
+        text += page.extract_text() or ""
 
-    full_text = "\n\n".join(p.strip() for p in text_parts if p and p.strip())
-
-    if output_path:
-        outp = Path(output_path)
-        outp.write_text(full_text, encoding="utf-8")
-
-    return full_text
+    return text
 
 
 def docx_to_text(docx_path: str | Path,
