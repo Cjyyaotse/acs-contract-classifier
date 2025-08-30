@@ -40,7 +40,7 @@ class ContractClassifier:
         Return ONLY a valid JSON object with the following structure:
         {{
           "category": "exact category name from the list above",
-          "reason": "brief explanation for your classification choice"
+          "reason": "brief explanation about 20 words for your classification choice"
         }}
 
         Contract Text:

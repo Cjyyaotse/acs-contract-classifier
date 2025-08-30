@@ -4,146 +4,142 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 import re
 from typing import Dict, List
 
+
 class FewShotContractClassifier:
+    """Few-shot + keyword hybrid classifier for contract types."""
+
     def __init__(self):
-        # Few-shot examples for each contract type
-        self.examples = {
+        self.examples: Dict[str, List[str]] = {
             "Non-Disclosure Agreements": [
                 "confidentiality agreement between parties to protect proprietary information",
                 "non-disclosure agreement prohibiting disclosure of trade secrets",
-                "NDA protecting confidential business information during discussions"
+                "NDA protecting confidential business information during discussions",
             ],
             "Service-Level Agreements": [
                 "service level agreement defining uptime guarantees and performance metrics",
                 "SLA outlining response times and availability commitments",
-                "service agreement with performance standards and remedies"
+                "service agreement with performance standards and remedies",
             ],
             "Employment Contracts": [
                 "employment agreement specifying salary benefits and job responsibilities",
                 "contract of employment with termination conditions and compensation",
-                "employee agreement outlining terms of service and benefits"
+                "employee agreement outlining terms of service and benefits",
             ],
             "Vendor Agreements": [
                 "vendor contract for supply of goods and services with payment terms",
                 "supplier agreement outlining delivery schedules and quality standards",
-                "purchasing agreement with vendor performance requirements"
+                "purchasing agreement with vendor performance requirements",
             ],
             "Partnership Agreements": [
                 "partnership agreement establishing business collaboration terms",
                 "joint venture agreement with profit sharing and management structure",
-                "partnership contract outlining roles responsibilities and contributions"
-            ]
+                "partnership contract outlining roles responsibilities and contributions",
+            ],
         }
 
-        # Keywords for fallback
-        self.keywords = {
-            "Non-Disclosure Agreements": ["confidential", "nda", "non-disclosure", "proprietary", "trade secret", "disclosure"],
-            "Service-Level Agreements": ["sla", "service level", "uptime", "response time", "performance", "availability", "guarantee"],
-            "Employment Contracts": ["employment", "salary", "benefits", "termination", "job", "wages", "employee", "employer"],
-            "Vendor Agreements": ["vendor", "supplier", "purchase", "delivery", "goods", "services", "procurement", "supply"],
-            "Partnership Agreements": ["partnership", "joint venture", "profit sharing", "collaboration", "partner", "venture", "joint"]
+        self.keywords: Dict[str, List[str]] = {
+            "Non-Disclosure Agreements": [
+                "confidential", "nda", "non-disclosure", "proprietary", "trade secret", "disclosure",
+            ],
+            "Service-Level Agreements": [
+                "sla", "service level", "uptime", "response time", "performance", "availability", "guarantee",
+            ],
+            "Employment Contracts": [
+                "employment", "salary", "benefits", "termination", "job", "wages", "employee", "employer",
+            ],
+            "Vendor Agreements": [
+                "vendor", "supplier", "purchase", "delivery", "goods", "services", "procurement", "supply",
+            ],
+            "Partnership Agreements": [
+                "partnership", "joint venture", "profit sharing", "collaboration", "partner", "venture", "joint",
+            ],
         }
 
-        # Initialize TF-IDF vectorizer
-        self.vectorizer = TfidfVectorizer(stop_words='english', max_features=1000)
+        self.vectorizer = TfidfVectorizer(stop_words="english", max_features=1000)
         self._train_vectorizer()
 
-    def _train_vectorizer(self):
-        """Train the vectorizer on all examples"""
-        all_texts = []
-        for examples in self.examples.values():
-            all_texts.extend(examples)
+    def _train_vectorizer(self) -> None:
+        """Fit vectorizer on all examples."""
+        all_texts = [txt for ex_list in self.examples.values() for txt in ex_list]
         self.vectorizer.fit(all_texts)
 
     def _get_similarity_score(self, text: str, contract_type: str) -> float:
-        """Calculate similarity score using TF-IDF and cosine similarity"""
-        # Vectorize input text
+        """Cosine similarity between text and few-shot examples."""
         text_vec = self.vectorizer.transform([text])
-
-        # Vectorize all examples for this contract type
-        example_vectors = self.vectorizer.transform(self.examples[contract_type])
-
-        # Calculate average similarity
-        similarities = cosine_similarity(text_vec, example_vectors)
+        example_vecs = self.vectorizer.transform(self.examples[contract_type])
+        similarities = cosine_similarity(text_vec, example_vecs)
         return float(np.mean(similarities))
 
     def _keyword_score(self, text: str, contract_type: str) -> float:
-        """Calculate keyword matching score"""
+        """Keyword coverage score."""
         text_lower = text.lower()
-        relevant_keywords = self.keywords[contract_type]
-
-        matches = sum(1 for keyword in relevant_keywords if re.search(r'\b' + re.escape(keyword) + r'\b', text_lower))
-        return matches / len(relevant_keywords) if relevant_keywords else 0
+        keywords = self.keywords[contract_type]
+        matches = sum(1 for kw in keywords if re.search(r"\b" + re.escape(kw) + r"\b", text_lower))
+        return matches / len(keywords) if keywords else 0.0
 
     def classify_contract(self, text: str, confidence_threshold: float = 0.3) -> Dict:
-        """Classify contract text using few-shot learning"""
+        """Classify text into contract type."""
         if len(text.strip()) < 10:
-            return {"error": "Text too short"}
-
-        try:
-            scores = {}
-
-            # Calculate scores for each contract type
-            for contract_type in self.examples.keys():
-                # Combine similarity and keyword scores
-                similarity_score = self._get_similarity_score(text, contract_type)
-                keyword_score = self._keyword_score(text, contract_type)
-
-                # Weighted combination (you can adjust weights)
-                combined_score = (0.7 * similarity_score) + (0.3 * keyword_score)
-                scores[contract_type] = combined_score
-
-            # Get best match
-            best_type = max(scores.items(), key=lambda x: x[1])
-            confidence = best_type[1]
-
             return {
-                "predicted_class": best_type[0],
-                "confidence": round(confidence, 3),
-                "is_confident": confidence >= confidence_threshold,
-                "all_scores": {k: round(v, 3) for k, v in scores.items()},
-                "method": "few-shot" if confidence >= 0.2 else "keyword-fallback"
+                "predicted_class": None,
+                "confidence": 0.0,
+                "is_confident": False,
+                "all_scores": {},
+                "method": "invalid-input",
+                "error": "Text too short",
             }
 
-        except Exception as e:
-            # Fallback to pure keyword matching if anything fails
+        try:
+            scores: Dict[str, float] = {}
+            for ctype in self.examples:
+                sim = self._get_similarity_score(text, ctype)
+                kw = self._keyword_score(text, ctype)
+                scores[ctype] = (0.7 * sim) + (0.3 * kw)
+
+            best_type, best_score = max(scores.items(), key=lambda x: x[1])
+            return {
+                "predicted_class": best_type,
+                "confidence": round(best_score, 3),
+                "is_confident": best_score >= confidence_threshold,
+                "all_scores": {k: round(v, 3) for k, v in scores.items()},
+                "method": "few-shot" if best_score >= 0.2 else "keyword-fallback",
+            }
+
+        except Exception:
             return self._keyword_fallback(text)
 
     def _keyword_fallback(self, text: str) -> Dict:
-        """Pure keyword-based fallback"""
+        """Pure keyword-based fallback classification."""
         text_lower = text.lower()
-        scores = {}
-
-        for contract_type, keywords in self.keywords.items():
-            matches = sum(1 for keyword in keywords if re.search(r'\b' + re.escape(keyword) + r'\b', text_lower))
-            scores[contract_type] = matches / len(keywords) if keywords else 0
-
-        best_type = max(scores.items(), key=lambda x: x[1])
-
+        scores = {
+            ctype: sum(1 for kw in kws if kw in text_lower) / len(kws)
+            for ctype, kws in self.keywords.items()
+        }
+        best_type, best_score = max(scores.items(), key=lambda x: x[1])
         return {
-            "predicted_class": best_type[0],
-            "confidence": round(best_type[1], 3),
-            "is_confident": best_type[1] >= 0.3,
+            "predicted_class": best_type,
+            "confidence": round(best_score, 3),
+            "is_confident": best_score >= 0.3,
             "all_scores": {k: round(v, 3) for k, v in scores.items()},
-            "method": "keyword-fallback"
+            "method": "keyword-fallback",
         }
 
-    def add_example(self, contract_type: str, example_text: str):
-        """Add new example to improve classification"""
+    def add_example(self, contract_type: str, example_text: str) -> None:
+        """Add new training example and retrain vectorizer."""
         if contract_type in self.examples:
             self.examples[contract_type].append(example_text)
-            # Retrain vectorizer with new example
             self._train_vectorizer()
 
-# Create global instance
+
+# Global instance
 classifier = FewShotContractClassifier()
 
 def classify_text(text: str, confidence_threshold: float = 0.3) -> Dict:
     return classifier.classify_contract(text, confidence_threshold)
 
-def add_training_example(contract_type: str, example_text: str):
-    """Add new training example to improve the classifier"""
+def add_training_example(contract_type: str, example_text: str) -> None:
     classifier.add_example(contract_type, example_text)
+
 
 # Example usage and testing
 if __name__ == "__main__":

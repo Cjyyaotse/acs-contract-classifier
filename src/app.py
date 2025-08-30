@@ -14,7 +14,7 @@ def create_app() -> FastAPI:
     """Create and configure FastAPI app"""
     app = FastAPI(
         title="Contract Classifier API",
-        description="Zero-shot classification service for contracts",
+        description="Contract classification service for contracts",
         version="1.0.0"
     )
 
