@@ -1,5 +1,5 @@
-# acs-contract-classifier
-📑 Contract Classifier API
+# ACS-contract-classifier
+## 📑 Contract Classifier API
 
 🚀 A FastAPI-based service that classifies contract documents into their respective categories using multiple strategies:
 
@@ -12,7 +12,7 @@ LLM-based Classification (powered by OpenAI GPT models)
 The API supports both raw text input and PDF uploads.
 If a PDF is scanned (image-based), the system automatically uses OCRmyPDF (built on Tesseract OCR) to extract text before classification.
 
-✨ Features
+## ✨ Features
 
 📄 Classify text or PDF contracts into categories such as Employment, NDA, Partnership, Service, Vendor.
 
@@ -40,7 +40,7 @@ sudo apt-get update && sudo apt-get install -y \
     poppler-utils \
     build-essential
 
-🚀 Installation
+## 🚀 Installation
 
 Clone the repository
 
@@ -66,9 +66,9 @@ python src/app.py
 
 
 The API will be available at:
-👉 http://127.0.0.1:8000/
+## 👉 http://127.0.0.1:8000/
 
-📡 API Endpoints
+## 📡 API Endpoints
 Root
 
 GET / → Health check (verifies API is running)
@@ -91,7 +91,7 @@ POST /llm/classify → Classify raw text
 
 POST /llm/classify-pdf → Upload a PDF and classify
 
-🧠 Categories
+## 🧠 Categories
 
 Currently supported contract categories:
 
@@ -105,7 +105,7 @@ Service
 
 Vendor
 
-🏋️ Model Training (TF-IDF + Logistic Regression)
+## 🏋️ Model Training (TF-IDF + Logistic Regression)
 
 If you want to retrain the TF-IDF + Logistic Regression model:
 
@@ -129,7 +129,7 @@ You can build and run the app inside Docker:
 docker build -t contract-classifier .
 docker run -d -p 8000:8000 contract-classifier
 
-📖 Example Usage
+## 📖 Example Usage
 Classify Raw Text
 curl -X POST "http://127.0.0.1:8000/tf_logistic_regression/classify" \
      -H "Content-Type: application/json" \
@@ -154,6 +154,6 @@ OCRmyPDF
  + Tesseract
  – OCR
 
-📜 License
+## 📜 License
 
 MIT License – feel free to use and modify.
