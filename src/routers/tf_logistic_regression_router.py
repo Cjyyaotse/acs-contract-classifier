@@ -5,13 +5,13 @@ import io
 import os
 import tempfile
 
-from utils.ocr_pdf import extract_text_from_scanned
+from src.utils.ocr_pdf import extract_text_from_scanned
 from models.schema import (
     TfLRClassificationRequest,
     TfLRBatchClassificationRequest,
     TfLRClassificationResponse,
 )
-from services.tf_logistic_regression import ContractClassifierService
+from src.services.tf_logistic_regression import ContractClassifierService
 
 router = APIRouter(prefix="/tf_logistic_regression", tags=["tf_logistic_regression"])
 

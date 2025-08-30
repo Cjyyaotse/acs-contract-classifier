@@ -6,15 +6,15 @@ import io
 import os
 import tempfile
 
-from utils.ocr_pdf import extract_text_from_scanned
-from models.schema import (
+from src.utils.ocr_pdf import extract_text_from_scanned
+from src.models.schema import (
     ContractRequest,
     ClassificationResponse,
     BatchClassificationResponse,
     FewShotAddExampleResponse as AddExampleResponse,
     FewShotAddExampleRequest as AddExampleRequest,
 )
-from services.few_shot_classifier import FewShotContractClassifier
+from src.services.few_shot_classifier import FewShotContractClassifier
 
 router = APIRouter(prefix="/few_shot", tags=["few_shot"])
 

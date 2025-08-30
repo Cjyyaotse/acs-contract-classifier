@@ -2,9 +2,9 @@ from fastapi import FastAPI
 import logging
 
 # Import your router
-from routers import few_shot_router
-from routers import tf_logistic_regression_router
-from routers import llm_classifier_router
+from src.routers import few_shot_router
+from src.routers import tf_logistic_regression_router
+from src.routers import llm_classifier_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

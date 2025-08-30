@@ -4,9 +4,9 @@ import io
 import os
 import tempfile
 
-from utils.ocr_pdf import extract_text_from_scanned
-from models.schema import LlmContractText, LlmContractResponse
-from services.llm_classifier import ContractClassifier
+from src.utils.ocr_pdf import extract_text_from_scanned
+from src.models.schema import LlmContractText, LlmContractResponse
+from src.services.llm_classifier import ContractClassifier
 
 router = APIRouter(prefix="/llm", tags=["llm"])
 
