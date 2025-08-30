@@ -18,7 +18,7 @@ If a PDF is scanned (image-based), the system automatically uses OCRmyPDF (built
 
 🤖 Three independent services:
 
-Few-Shot Router → Uses handcrafted examples.
+TF-IDF + Few-Shot Router → Uses handcrafted examples.
 
 TF-IDF + Logistic Regression → Machine learning trained model.
 
