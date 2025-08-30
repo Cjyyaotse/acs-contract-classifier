@@ -1,9 +1,15 @@
 # services/few_shot_router.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional, Any
-import re
+from PyPDF2 import PdfReader
+import io
+import os
+import tempfile
 
+from utils.ocr_pdf import extract_text_from_scanned
+from models.schema import ContractRequest, ClassificationResponse, BatchClassificationResponse
+from models.schema import FewShotAddExampleResponse as AddExampleResponse, FewShotAddExampleRequest as AddExampleRequest
 from services.few_shot_classifier import FewShotContractClassifier
 
 router = APIRouter(prefix="/few_shot", tags=["few_shot"])
@@ -11,31 +17,6 @@ router = APIRouter(prefix="/few_shot", tags=["few_shot"])
 # Initialize the classifier service
 classifier_service = FewShotContractClassifier()
 
-class ContractRequest(BaseModel):
-    contract_text: str = Field(..., min_length=1, description="Raw contract text or PDF extract")
-    metadata: dict = Field(default_factory=dict, description="Optional metadata about the contract")
-
-class ClassificationResponse(BaseModel):
-    prediction: str
-    confidence: float
-    all_scores: Dict[str, float]
-    text_preview: str
-    error: Optional[str] = None
-
-class BatchClassificationResponse(BaseModel):
-    results: List[ClassificationResponse]
-    summary: Dict[str, Any]
-
-class AddExampleRequest(BaseModel):
-    contract_type: str
-    example_text: str = Field(..., min_length=10, description="Training example text")
-    metadata: dict = Field(default_factory=dict, description="Optional metadata about the example")
-
-class AddExampleResponse(BaseModel):
-    success: bool
-    message: str
-    contract_type: str
-    examples_count: int
 
 @router.post("/classify", response_model=ClassificationResponse)
 async def classify_contract(request: ContractRequest):
@@ -80,6 +61,56 @@ async def classify_contract(request: ContractRequest):
             text_preview=request.contract_text[:100] + "..." if len(request.contract_text) > 100 else request.contract_text,
             error=f"Classification failed: {str(e)}"
         )
+
+
+@router.post("/classify-pdf", response_model=ClassificationResponse)
+async def classify_contract_pdf(file: UploadFile = File(...)):
+    """
+    Upload PDF file and classify the contract.
+    Falls back to OCR if the PDF is scanned.
+    """
+    if not file.filename.endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="File must be a PDF")
+
+    try:
+        pdf_content = await file.read()
+
+        # ✅ First try PyPDF2
+        reader = PdfReader(io.BytesIO(pdf_content))
+        text = ""
+        for page in reader.pages:
+            page_text = page.extract_text() or ""
+            text += page_text + "\n"
+
+        # ✅ Fallback to OCRmyPDF if no text extracted
+        if not text.strip():
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                tmp.write(pdf_content)
+                tmp_path = tmp.name
+
+            try:
+                text = extract_text_from_scanned(tmp_path, language="eng")
+            finally:
+                os.unlink(tmp_path)  # cleanup no matter what
+
+        if not text.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="Could not extract text from PDF (even with OCR)"
+            )
+
+        # ✅ Run classification
+        result = classifier_service.classify_contract(text)
+        return ClassificationResponse(
+            prediction=result["predicted_class"],
+            confidence=result["confidence"],
+            all_scores=result["all_scores"],
+            text_preview=text[:100] + "..." if len(text) > 100 else text,
+            error=None
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF processing failed: {str(e)}")
 
 @router.post("/classify/batch", response_model=BatchClassificationResponse)
 async def classify_batch(requests: List[ContractRequest]):

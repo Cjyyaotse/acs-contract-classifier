@@ -2,10 +2,11 @@ PyPDF2
 uvicorn
 fastapi
 python-multipart
-scikit-learn
+scikit-learn==1.6.1
 python-docx
 transformers
 torch
 pypdf
 langchain_community
 fitz
+ocrmypdf

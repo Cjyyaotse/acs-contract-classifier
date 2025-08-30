@@ -1,66 +1,69 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from pydantic import BaseModel
-import PyPDF2
+from PyPDF2 import PdfReader
 import io
-from typing import Dict
+import os
+import tempfile
 
-# Import your existing classifier
+# Import your existing classifier and OCR helper
+from utils.ocr_pdf import extract_text_from_scanned
+from models.schema import LlmContractText, LlmContractResponse
 from services.llm_classifier import ContractClassifier
 
-router = APIRouter(prefix="/contracts", tags=["contracts"])
+router = APIRouter(prefix="/llm", tags=["llm"])
 
-# Initialize your classifier (make sure to import it)
+# Initialize your classifier
 classifier = ContractClassifier()
 
-class ContractText(BaseModel):
-    text: str
 
-class ContractResponse(BaseModel):
-    category: str
-    reason: str
-
-@router.post("/classify-text", response_model=ContractResponse)
-async def classify_contract_text(contract: ContractText) -> Dict[str, str]:
+@router.post("/classify-text", response_model=LlmContractResponse)
+async def classify_contract_text(contract: LlmContractText) -> LlmContractResponse:
     """
     Classify contract text directly
     """
     try:
         result = classifier.predict_contract_category(contract.text)
-        return ContractResponse(**result)
+        return LlmContractResponse(**result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Classification failed: {str(e)}")
 
-@router.post("/classify-pdf", response_model=ContractResponse)
-async def classify_contract_pdf(file: UploadFile = File(...)) -> Dict[str, str]:
+
+@router.post("/classify-pdf", response_model=LlmContractResponse)
+async def classify_contract_pdf(file: UploadFile = File(...)) -> LlmContractResponse:
     """
-    Upload PDF file and classify the contract
+    Upload PDF file and classify the contract.
+    Falls back to OCR if the PDF is scanned.
     """
-    if not file.filename.endswith('.pdf'):
+    if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="File must be a PDF")
 
     try:
-        # Read PDF content
         pdf_content = await file.read()
-        pdf_reader = PyPDF2.PdfReader(io.BytesIO(pdf_content))
 
-        # Extract text from all pages
+        # ✅ First try PyPDF2
+        reader = PdfReader(io.BytesIO(pdf_content))
         text = ""
-        for page in pdf_reader.pages:
-            text += page.extract_text() + "\n"
+        for page in reader.pages:
+            page_text = page.extract_text() or ""
+            text += page_text + "\n"
+
+        # ✅ Fallback to OCRmyPDF if text empty
+        if not text.strip():
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                tmp.write(pdf_content)
+                tmp_path = tmp.name
+
+            text = extract_text_from_scanned(tmp_path, language="eng")
+            os.unlink(tmp_path)  # cleanup
 
         if not text.strip():
-            raise HTTPException(status_code=400, detail="Could not extract text from PDF")
+            raise HTTPException(
+                status_code=400,
+                detail="Could not extract text from PDF (even with OCR)"
+            )
 
-        # Classify the extracted text
+        # ✅ Run classification
         result = classifier.predict_contract_category(text)
-        return ContractResponse(**result)
+        return LlmContractResponse(**result)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PDF processing failed: {str(e)}")
-
-@router.get("/categories")
-async def get_contract_categories():
-    """
-    Get list of available contract categories
-    """
-    return {"categories": classifier.categories}
