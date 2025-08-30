@@ -6,7 +6,7 @@ import os
 import tempfile
 
 from src.utils.ocr_pdf import extract_text_from_scanned
-from models.schema import (
+from src.models.schema import (
     TfLRClassificationRequest,
     TfLRBatchClassificationRequest,
     TfLRClassificationResponse,
